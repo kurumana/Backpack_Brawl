@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Representa uma partida/jogo do jogador
+model Game {
+  id          String   @id @default(cuid())
+  playerName  String
+  day         Int      @default(1)
+  health      Int      @default(100)
+  hunger      Int      @default(0)
+  thirst      Int      @default(0)
+  energy      Int      @default(100)
+  score       Int      @default(0)
+  isAlive     Boolean  @default(true)
+  inventory   InventoryItem[]
+  events      GameEvent[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Itens no inventário do jogador
+model InventoryItem {
+  id        String   @id @default(cuid())
+  gameId    String
+  itemType  String   // madeira, pedra, comida, agua, ferramenta, etc.
+  quantity  Int      @default(1)
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
+
+// Eventos que ocorreram durante a partida
+model GameEvent {
+  id        String   @id @default(cuid())
+  gameId    String
+  day       Int
+  action    String   // explorar, descansar, caçar, coletar, etc.
+  result    String   // resultado descritivo do evento
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
