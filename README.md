@@ -1,141 +1,284 @@
-# 🚀 Welcome to Z.ai Code Scaffold
+# 📊 Project Manager - Sistema de Gerenciamento de Projetos
 
-A modern, production-ready web application scaffold powered by cutting-edge technologies, designed to accelerate your development with [Z.ai](https://chat.z.ai)'s AI-powered coding assistance.
+Sistema completo de gerenciamento de projetos estilo Monday.com, desenvolvido com interface moderna e pronta para deploy em PHP na Hostinger Premium.
 
-## ✨ Technology Stack
+## 🎯 Visão Geral
 
-This scaffold provides a robust foundation built with:
+Este projeto é um **protótipo funcional completo** de um sistema de gerenciamento de projetos com interface moderna estilo Monday.com. O protótipo está desenvolvido em Next.js para visualização e teste, mas vem com **documentação completa** para implementação em PHP + MySQL na Hostinger Premium.
 
-### 🎯 Core Framework
-- **⚡ Next.js 15** - The React framework for production with App Router
-- **📘 TypeScript 5** - Type-safe JavaScript for better developer experience
-- **🎨 Tailwind CSS 4** - Utility-first CSS framework for rapid UI development
+## ✨ Features Implementadas
 
-### 🧩 UI Components & Styling
-- **🧩 shadcn/ui** - High-quality, accessible components built on Radix UI
-- **🎯 Lucide React** - Beautiful & consistent icon library
-- **🌈 Framer Motion** - Production-ready motion library for React
-- **🎨 Next Themes** - Perfect dark mode in 2 lines of code
+### 📈 Dashboard Principal
+- **Estatísticas em tempo real**: Total de projetos, tarefas, conclusões e membros da equipe
+- **Cards de projetos recentes**: Visualização rápida com progresso e metadados
+- **Minhas tarefas**: Lista personalizada de tarefas atribuídas ao usuário
+- **Atividades recentes**: Timeline de ações na equipe
 
-### 📋 Forms & Validation
-- **🎣 React Hook Form** - Performant forms with easy validation
-- **✅ Zod** - TypeScript-first schema validation
+### 📁 Gestão de Projetos
+- **Criar projetos** com nome, descrição, cor e datas
+- **Visualizar projetos** com cards informativos
+- **Progresso automático** baseado nas tarefas concluídas
+- **Membros do projeto** com papéis e permissões
 
-### 🔄 State Management & Data Fetching
-- **🐻 Zustand** - Simple, scalable state management
-- **🔄 TanStack Query** - Powerful data synchronization for React
-- **🌐 Fetch** - Promise-based HTTP request
+### 📋 Kanban Board
+- **4 colunas padrão**: A Fazer, Em Andamento, Revisão, Concluído
+- **Cards de tarefas** com informações detalhadas
+- **Prioridades** com indicadores visuais (Baixa, Média, Alta, Urgente)
+- **Tags** para categorização
+- **Atribuição de usuários** com avatares
+- **Prazos** com alertas de atraso
+- **Contador de comentários**
 
-### 🗄️ Database & Backend
-- **🗄️ Prisma** - Next-generation TypeScript ORM
-- **🔐 NextAuth.js** - Complete open-source authentication solution
+### 👥 Gestão de Equipe
+- **Perfis de usuários** com avatares
+- **Papéis e permissões** (Admin, Manager, Member)
+- **Atribuição de tarefas** para membros
 
-### 🎨 Advanced UI Features
-- **📊 TanStack Table** - Headless UI for building tables and datagrids
-- **🖱️ DND Kit** - Modern drag and drop toolkit for React
-- **📊 Recharts** - Redefined chart library built with React and D3
-- **🖼️ Sharp** - High performance image processing
+## 🗄️ Banco de Dados
 
-### 🌍 Internationalization & Utilities
-- **🌍 Next Intl** - Internationalization library for Next.js
-- **📅 Date-fns** - Modern JavaScript date utility library
-- **🪝 ReactUse** - Collection of essential React hooks for modern development
+Schema completo MySQL com 11 tabelas:
 
-## 🎯 Why This Scaffold?
+- `users` - Usuários e equipe
+- `projects` - Projetos
+- `project_members` - Membros de projetos
+- `columns` - Colunas do Kanban
+- `tasks` - Tarefas
+- `priorities` - Prioridades (Baixa, Média, Alta, Urgente)
+- `tags` - Tags de categorização
+- `task_tags` - Associação tarefa-tag
+- `comments` - Comentários em tarefas
+- `attachments` - Anexos de arquivos
+- `activity_log` - Histórico de atividades
+- `notifications` - Notificações
 
-- **🏎️ Fast Development** - Pre-configured tooling and best practices
-- **🎨 Beautiful UI** - Complete shadcn/ui component library with advanced interactions
-- **🔒 Type Safety** - Full TypeScript configuration with Zod validation
-- **📱 Responsive** - Mobile-first design principles with smooth animations
-- **🗄️ Database Ready** - Prisma ORM configured for rapid backend development
-- **🔐 Auth Included** - NextAuth.js for secure authentication flows
-- **📊 Data Visualization** - Charts, tables, and drag-and-drop functionality
-- **🌍 i18n Ready** - Multi-language support with Next Intl
-- **🚀 Production Ready** - Optimized build and deployment settings
-- **🤖 AI-Friendly** - Structured codebase perfect for AI assistance
+**Views e Stored Procedures incluídas:**
+- `project_stats` - Estatísticas do projeto
+- `task_details` - Detalhes completos das tarefas
+- `reorder_tasks()` - Reordenar tarefas
+- `complete_task()` - Marcar tarefa como concluída
 
-## 🚀 Quick Start
+## 🚀 Como Usar
 
-```bash
-# Install dependencies
-bun install
+### 1. Visualizar Protótipo (Next.js)
 
-# Start development server
-bun run dev
-
-# Build for production
-bun run build
-
-# Start production server
-bun start
+O protótipo está rodando e você pode visualizá-lo em:
+```
+http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to see your application running.
+**Features disponíveis no protótipo:**
+- ✅ Dashboard com estatísticas
+- ✅ Lista de projetos
+- ✅ Kanban Board funcional
+- ✅ Cards de tarefas com detalhes
+- ✅ Navegação entre seções
+- ✅ Interface responsiva
+- ✅ Design moderno estilo Monday.com
 
-## 🤖 Powered by Z.ai
+### 2. Implementar em PHP na Hostinger
 
-This scaffold is optimized for use with [Z.ai](https://chat.z.ai) - your AI assistant for:
+Para deploy na Hostinger Premium, siga a documentação completa:
 
-- **💻 Code Generation** - Generate components, pages, and features instantly
-- **🎨 UI Development** - Create beautiful interfaces with AI assistance  
-- **🔧 Bug Fixing** - Identify and resolve issues with intelligent suggestions
-- **📝 Documentation** - Auto-generate comprehensive documentation
-- **🚀 Optimization** - Performance improvements and best practices
+**📄 Guia Completo:** [`docs/PHP_IMPLEMENTATION.md`](docs/PHP_IMPLEMENTATION.md)
 
-Ready to build something amazing? Start chatting with Z.ai at [chat.z.ai](https://chat.z.ai) and experience the future of AI-powered development!
+**📄 Schema SQL:** [`database/schema.sql`](database/schema.sql)
 
-## 📁 Project Structure
+**O guia inclui:**
+- ✅ Estrutura completa de arquivos PHP
+- ✅ API REST endpoints (Autenticação, Projetos, Tarefas, Colunas, Usuários)
+- ✅ Código PHP pronto para uso
+- ✅ Integração do frontend JavaScript
+- ✅ Configuração de banco de dados MySQL
+- ✅ Deploy passo a passo na Hostinger
+- ✅ Checklist de verificação
+- ✅ Práticas de segurança
+
+## 📁 Estrutura do Projeto
 
 ```
-src/
-├── app/                 # Next.js App Router pages
-├── components/          # Reusable React components
-│   └── ui/             # shadcn/ui components
-├── hooks/              # Custom React hooks
-└── lib/                # Utility functions and configurations
+project-manager/
+├── src/
+│   └── app/
+│       └── page.tsx              # Protótipo Next.js (Interface completa)
+├── database/
+│   └── schema.sql                # Schema MySQL completo (11 tabelas)
+├── docs/
+│   └── PHP_IMPLEMENTATION.md     # Guia completo para implementação PHP
+├── prisma/
+│   └── schema.prisma             # Schema Prisma (para desenvolvimento local)
+└── README.md                     # Este arquivo
 ```
 
-## 🎨 Available Features & Components
+## 🔌 API PHP Endpoints (Documentados)
 
-This scaffold includes a comprehensive set of modern web development tools:
+### Autenticação
+- `POST /api/auth/login.php` - Login do usuário
+- `POST /api/auth/register.php` - Registrar novo usuário
+- `POST /api/auth/logout.php` - Logout
 
-### 🧩 UI Components (shadcn/ui)
-- **Layout**: Card, Separator, Aspect Ratio, Resizable Panels
-- **Forms**: Input, Textarea, Select, Checkbox, Radio Group, Switch
-- **Feedback**: Alert, Toast (Sonner), Progress, Skeleton
-- **Navigation**: Breadcrumb, Menubar, Navigation Menu, Pagination
-- **Overlay**: Dialog, Sheet, Popover, Tooltip, Hover Card
-- **Data Display**: Badge, Avatar, Calendar
+### Projetos
+- `GET /api/projects/index.php` - Listar projetos
+- `POST /api/projects/create.php` - Criar projeto
+- `PUT /api/projects/update.php` - Atualizar projeto
+- `DELETE /api/projects/delete.php` - Deletar projeto
+- `GET /api/projects/members.php` - Listar membros do projeto
 
-### 📊 Advanced Data Features
-- **Tables**: Powerful data tables with sorting, filtering, pagination (TanStack Table)
-- **Charts**: Beautiful visualizations with Recharts
-- **Forms**: Type-safe forms with React Hook Form + Zod validation
+### Tarefas
+- `GET /api/tasks/index.php` - Listar tarefas
+- `POST /api/tasks/create.php` - Criar tarefa
+- `PUT /api/tasks/update.php` - Atualizar tarefa
+- `DELETE /api/tasks/delete.php` - Deletar tarefa
+- `POST /api/tasks/move.php` - Mover tarefa entre colunas
 
-### 🎨 Interactive Features
-- **Animations**: Smooth micro-interactions with Framer Motion
-- **Drag & Drop**: Modern drag-and-drop functionality with DND Kit
-- **Theme Switching**: Built-in dark/light mode support
+### Colunas
+- `GET /api/columns/index.php` - Listar colunas de um projeto
 
-### 🔐 Backend Integration
-- **Authentication**: Ready-to-use auth flows with NextAuth.js
-- **Database**: Type-safe database operations with Prisma
-- **API Client**: HTTP requests with Fetch + TanStack Query
-- **State Management**: Simple and scalable with Zustand
+### Usuários
+- `GET /api/users/index.php` - Listar usuários
 
-### 🌍 Production Features
-- **Internationalization**: Multi-language support with Next Intl
-- **Image Optimization**: Automatic image processing with Sharp
-- **Type Safety**: End-to-end TypeScript with Zod validation
-- **Essential Hooks**: 100+ useful React hooks with ReactUse for common patterns
+### Comentários
+- `GET /api/comments/index.php` - Listar comentários
+- `POST /api/comments/create.php` - Criar comentário
 
-## 🤝 Get Started with Z.ai
+## 🎨 Stack Tecnológica
 
-1. **Clone this scaffold** to jumpstart your project
-2. **Visit [chat.z.ai](https://chat.z.ai)** to access your AI coding assistant
-3. **Start building** with intelligent code generation and assistance
-4. **Deploy with confidence** using the production-ready setup
+### Protótipo (Visualização)
+- **Frontend**: Next.js 15 + TypeScript
+- **UI**: shadcn/ui + Tailwind CSS
+- **Ícones**: Lucide React
+- **Estado**: React Hooks
+
+### Implementação PHP (Produção na Hostinger)
+- **Backend**: PHP 8.1+
+- **Banco de Dados**: MySQL
+- **API**: REST (JSON)
+- **Autenticação**: JWT (JSON Web Tokens)
+- **Frontend**: HTML/CSS/JavaScript Vanilla
+
+## 🚀 Deploy na Hostinger
+
+### Requisitos
+- Hostinger Premium Web Hosting
+- PHP 8.1 ou superior
+- MySQL Database
+
+### Passos Rápidos
+
+1. **Criar banco de dados** no painel Hostinger
+2. **Importar schema.sql** via phpMyAdmin
+3. **Copiar arquivos PHP** seguindo a estrutura documentada
+4. **Configurar credenciais** em `config/database.php`
+5. **Upload via FTP** para `public_html`
+6. **Testar acesso** ao sistema
+
+**📖 Guia detalhado:** Consulte [`docs/PHP_IMPLEMENTATION.md`](docs/PHP_IMPLEMENTATION.md)
+
+## 🔒 Segurança
+
+### Implementada no Schema SQL
+- ✅ Password hashing com bcrypt
+- ✅ Foreign keys com ON DELETE CASCADE
+- ✅ Índices otimizados para performance
+- ✅ Campos DATETIME para rastreamento
+
+### Implementada no Código PHP (no guia)
+- ✅ Prepared statements contra SQL injection
+- ✅ Validação e sanitização de inputs
+- ✅ Autenticação JWT
+- ✅ Rate limiting
+- ✅ Proteção de uploads
+- ✅ HTTPS obrigatório
+
+## 📊 Schema MySQL Destaques
+
+### Tabelas Principais
+
+**projects**
+- Relacionamento com usuários (owner)
+- Status (active, archived, completed)
+- Datas de início e fim
+- Cores e ícones personalizados
+
+**tasks**
+- Sistema de prioridades (4 níveis)
+- Atribuição de usuários
+- Prazos e datas
+- Posição para ordenação
+- Tags flexíveis
+
+**columns**
+- Sistema Kanban personalizável
+- Cores por coluna
+- Ordenação por posição
+
+**activity_log**
+- Histórico completo de ações
+- Rastreamento de mudanças
+- Audit trail
+
+## 🎓 Próximos Passos
+
+Funcionalidades que podem ser adicionadas:
+
+1. **Drag & Drop** - Arrastar e soltar tarefas entre colunas
+2. **Filtros Avançados** - Por data, atribuição, tags, prioridade
+3. **Gráficos e Relatórios** - Burnup, Burndown, Gantt
+4. **Notificações em Tempo Real** - WebSocket
+5. **Anexos de Arquivos** - Upload e gestão
+6. **Calendário** - Visualização por datas
+7. **Busca Global** - Full-text search
+8. **Integrações** - Slack, Email, Google Calendar
+
+## 📚 Documentação
+
+- **📘 Guia PHP Completo**: [`docs/PHP_IMPLEMENTATION.md`](docs/PHP_IMPLEMENTATION.md)
+- **🗄️ Schema MySQL**: [`database/schema.sql`](database/schema.sql)
+
+## ✅ Checklist de Implementação
+
+### Para Deploy na Hostinger:
+
+- [ ] Ler o guia completo em `docs/PHP_IMPLEMENTATION.md`
+- [ ] Criar banco de dados MySQL na Hostinger
+- [ ] Importar `database/schema.sql`
+- [ ] Implementar API endpoints PHP
+- [ ] Adaptar frontend JavaScript
+- [ ] Configurar autenticação JWT
+- [ ] Upload via FTP
+- [ ] Configurar .htaccess
+- [ ] Testar todas as funcionalidades
+- [ ] Configurar HTTPS
+- [ ] Implementar sistema de backups
+- [ ] Testar em dispositivos móveis
+
+## 💡 Dicas de Uso
+
+### Durante Desenvolvimento
+- Use o protótipo Next.js para validar UX/UI
+- Teste as interações antes de implementar em PHP
+- Adapte os componentes do protótipo para HTML/CSS
+
+### Para Hostinger
+- Mantenha o banco de dados atualizado
+- Implemente backups automáticos
+- Monitore performance regularmente
+- Use HTTPS em produção
+
+## 🤝 Suporte
+
+Este projeto inclui:
+- ✅ Protótipo funcional em Next.js
+- ✅ Schema MySQL completo
+- ✅ Documentação detalhada para PHP
+- ✅ Exemplos de código pronto para uso
+
+## 📄 Licença
+
+Este projeto foi desenvolvido como um sistema de gerenciamento de projetos completo, pronto para implementação em PHP na Hostinger Premium.
 
 ---
 
-Built with ❤️ for the developer community. Supercharged by [Z.ai](https://chat.z.ai) 🚀
+**Desenvolvido com ❤️ para simplificar a gestão de projetos.**
+
+**Versão**: 1.0
+**Data**: 2024-01-01
