@@ -228,7 +228,17 @@ export default function BackpackBrawl() {
       case 'EPIC': return 'text-purple-500';
       case 'RARE': return 'text-blue-500';
       case 'UNCOMMON': return 'text-green-500';
-      default: return 'text-gray-500';
+      default: return 'text-gray-400';
+    }
+  };
+
+  const getRarityName = (rarity: string) => {
+    switch (rarity) {
+      case 'LEGENDARY': return 'Lendário';
+      case 'EPIC': return 'Épico';
+      case 'RARE': return 'Raro';
+      case 'UNCOMMON': return 'Incomum';
+      default: return 'Comum';
     }
   };
 
@@ -249,14 +259,26 @@ export default function BackpackBrawl() {
         setIsAuthenticated(true);
         // Load user data
         try {
-          const response = await fetch('/api/auth/demo');
+          const response = await fetch('/api/auth/me', {
+            headers: {
+              'x-user-id': storedUserId,
+            },
+          });
           if (response.ok) {
             const data = await response.json();
             setUser(data.user);
             setCharacter(data.character);
+          } else {
+            // Se der erro, remove o userId inválido
+            localStorage.removeItem('userId');
+            setIsAuthenticated(false);
           }
         } catch (error) {
           console.error('Error loading user:', error);
+          // Em caso de erro, não bloqueia o acesso
+          // Apenas mostra a tela de login
+          localStorage.removeItem('userId');
+          setIsAuthenticated(false);
         }
       }
     };
@@ -409,11 +431,11 @@ export default function BackpackBrawl() {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 text-sm">
                 <Coins className="w-4 h-4 text-yellow-500" />
-                <span className="font-semibold">{user?.coins || 0}</span>
+                <span className="font-semibold text-white">{user?.coins || 0}</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <Gem className="w-4 h-4 text-purple-500" />
-                <span className="font-semibold">{user?.gems || 0}</span>
+                <span className="font-semibold text-white">{user?.gems || 0}</span>
               </div>
               <Badge variant="outline" className="border-orange-500 text-orange-400">
                 Nível {user?.level || 1}
@@ -479,13 +501,13 @@ export default function BackpackBrawl() {
                     {/* Your Character */}
                     <Card className="border-slate-600 bg-slate-900/50">
                       <CardHeader>
-                        <CardTitle className="text-lg">{character?.name || 'Guerreiro'}</CardTitle>
+                        <CardTitle className="text-lg text-white">{character?.name || 'Guerreiro'}</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <Heart className="w-5 h-5 text-red-500" />
-                            <span className="text-sm">HP</span>
+                            <span className="text-sm text-slate-300">HP</span>
                           </div>
                           <span className="font-semibold text-red-400">
                             {character?.health || 100} / {character?.maxHealth || 100}
@@ -494,7 +516,7 @@ export default function BackpackBrawl() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <Swords className="w-5 h-5 text-orange-500" />
-                            <span className="text-sm">Ataque</span>
+                            <span className="text-sm text-slate-300">Ataque</span>
                           </div>
                           <span className="font-semibold text-orange-400">
                             {character?.attack || 10}
@@ -503,7 +525,7 @@ export default function BackpackBrawl() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <Shield className="w-5 h-5 text-blue-500" />
-                            <span className="text-sm">Defesa</span>
+                            <span className="text-sm text-slate-300">Defesa</span>
                           </div>
                           <span className="font-semibold text-blue-400">
                             {character?.defense || 5}
@@ -512,7 +534,7 @@ export default function BackpackBrawl() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <Zap className="w-5 h-5 text-yellow-500" />
-                            <span className="text-sm">Velocidade</span>
+                            <span className="text-sm text-slate-300">Velocidade</span>
                           </div>
                           <span className="font-semibold text-yellow-400">
                             {character?.speed || 5}
@@ -524,7 +546,7 @@ export default function BackpackBrawl() {
                     {/* Battle Stats */}
                     <Card className="border-slate-600 bg-slate-900/50">
                       <CardHeader>
-                        <CardTitle className="text-lg">Estatísticas de Batalha</CardTitle>
+                        <CardTitle className="text-lg text-white">Estatísticas de Batalha</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="flex items-center justify-between">
@@ -541,7 +563,7 @@ export default function BackpackBrawl() {
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-slate-400">Taxa de Vitória</span>
-                          <span className="font-semibold">
+                          <span className="font-semibold text-white">
                             {user?.wins && user?.losses
                               ? Math.round((user.wins / (user.wins + user.losses)) * 100)
                               : 0}%
@@ -597,7 +619,7 @@ export default function BackpackBrawl() {
                   {/* Battle Log */}
                   <Card className="border-slate-600 bg-slate-900/50">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-base">Log de Batalha</CardTitle>
+                      <CardTitle className="text-base text-white">Log de Batalha</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <ScrollArea className="h-48 w-full">
@@ -658,7 +680,7 @@ export default function BackpackBrawl() {
                             <div>
                               <p className="text-sm font-semibold text-white">{item.name}</p>
                               <Badge className={`text-xs ${getRarityColor(item.rarity)} border-0 bg-transparent`}>
-                                {item.rarity}
+                                {getRarityName(item.rarity)}
                               </Badge>
                             </div>
                           </div>
@@ -715,7 +737,7 @@ export default function BackpackBrawl() {
                             <div>
                               <p className="text-sm font-semibold text-white">{item.name}</p>
                               <Badge className={`text-xs ${getRarityColor(item.rarity)} border-0 bg-transparent`}>
-                                {item.rarity}
+                                {getRarityName(item.rarity)}
                               </Badge>
                             </div>
                           </div>
