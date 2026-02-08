@@ -1,0 +1,216 @@
+// Backpack Brawl - Complete Game Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User System
+model User {
+  id             String      @id @default(cuid())
+  email          String      @unique
+  name           String
+  password       String
+  coins          Int         @default(100)
+  gems           Int         @default(0)
+  level          Int         @default(1)
+  experience     Int         @default(0)
+  ranking        Int         @default(0)
+  wins           Int         @default(0)
+  losses         Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  characters     Character[]
+  inventoryItems InventoryItem[]
+  battlesAsPlayer1 Battle[] @relation("Player1Battles")
+  battlesAsPlayer2 Battle[] @relation("Player2Battles")
+  lootChests     LootChest[]
+  shopPurchases  ShopPurchase[]
+}
+
+// Character System
+model Character {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  avatar      String?
+  level       Int      @default(1)
+  health      Int      @default(100)
+  maxHealth   Int      @default(100)
+  attack      Int      @default(10)
+  defense     Int      @default(5)
+  speed       Int      @default(5)
+  wins        Int      @default(0)
+  losses      Int      @default(0)
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  equipment   Equipment[]
+}
+
+// Item Templates
+model ItemTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        ItemType
+  rarity      ItemRarity
+  icon        String?
+  attackBonus Int      @default(0)
+  defenseBonus Int     @default(0)
+  healthBonus Int      @default(0)
+  speedBonus  Int      @default(0)
+  basePrice   Int      @default(0)
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  inventoryItems InventoryItem[]
+  equipment      Equipment[]
+  shopItems      ShopItem[]
+}
+
+// User's Inventory
+model InventoryItem {
+  id          String   @id @default(cuid())
+  userId      String
+  itemId      String
+  quantity    Int      @default(1)
+  obtainedAt  DateTime @default(now())
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item        ItemTemplate    @relation(fields: [itemId], references: [id])
+
+  @@unique([userId, itemId])
+}
+
+// Equipment Equipped
+model Equipment {
+  id          String     @id @default(cuid())
+  characterId String
+  itemId      String
+  slot        EquipmentSlot
+  equippedAt  DateTime   @default(now())
+
+  character   Character   @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  item        ItemTemplate @relation(fields: [itemId], references: [id])
+
+  @@unique([characterId, slot])
+}
+
+// Battle System
+model Battle {
+  id          String      @id @default(cuid())
+  player1Id   String
+  player2Id   String
+  player1Health Int       @default(100)
+  player2Health Int       @default(100)
+  player1MaxHealth Int     @default(100)
+  player2MaxHealth Int     @default(100)
+  status      BattleStatus @default(IN_PROGRESS)
+  winner      String?
+  currentTurn Int         @default(1)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  player1     User        @relation("Player1Battles", fields: [player1Id], references: [id])
+  player2     User        @relation("Player2Battles", fields: [player2Id], references: [id])
+  turns       BattleTurn[]
+}
+
+// Battle Turns
+model BattleTurn {
+  id        String   @id @default(cuid())
+  battleId  String
+  playerId  String
+  turnNumber Int
+  action    String
+  damage    Int      @default(0)
+  createdAt DateTime @default(now())
+
+  battle    Battle   @relation(fields: [battleId], references: [id], onDelete: Cascade)
+}
+
+// Loot Chests
+model LootChest {
+  id          String    @id @default(cuid())
+  userId      String
+  chestType   ChestType
+  opened      Boolean   @default(false)
+  rewards     String?   // JSON string of rewards
+  createdAt   DateTime  @default(now())
+  openedAt    DateTime?
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Shop Items
+model ShopItem {
+  id          String      @id @default(cuid())
+  itemId      String
+  price       Int
+  discount    Int         @default(0)
+  available   Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  item        ItemTemplate @relation(fields: [itemId], references: [id])
+  purchases   ShopPurchase[]
+}
+
+// Shop Purchases
+model ShopPurchase {
+  id          String   @id @default(cuid())
+  userId      String
+  shopItemId  String
+  price       Int
+  quantity    Int      @default(1)
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopItem    ShopItem @relation(fields: [shopItemId], references: [id])
+}
+
+// Enums
+enum ItemType {
+  WEAPON
+  ARMOR
+  ACCESSORY
+  POTION
+  MATERIAL
+}
+
+enum ItemRarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+enum EquipmentSlot {
+  WEAPON
+  ARMOR
+  HELMET
+  ACCESSORY
+}
+
+enum BattleStatus {
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ChestType {
+  BASIC
+  PREMIUM
+  EPIC
+  LEGENDARY
+}
