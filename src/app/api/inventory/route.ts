@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
       orderBy: { obtainedAt: 'desc' },
     });
 
+    console.log(`[DEBUG] Inventory for user ${userId}: ${inventoryItems.length} items`);
+
     return NextResponse.json({ inventoryItems });
   } catch (error) {
     console.error('Get inventory error:', error);

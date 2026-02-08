@@ -19,6 +19,8 @@ export async function GET(request: NextRequest) {
       take: 12,
     });
 
+    console.log(`[DEBUG] Shop loaded: ${shopItems.length} items for user ${userId}`);
+
     return NextResponse.json({ shopItems });
   } catch (error) {
     console.error('Get shop error:', error);

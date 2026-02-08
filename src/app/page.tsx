@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+/* eslint-disable react-hooks/set-state-in-effect */
+
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,6 +57,13 @@ type Character = {
   speed: number;
   wins: number;
   losses: number;
+  equipment?: any[];
+};
+
+type Equipment = {
+  id: string;
+  slot: string;
+  item: Item;
 };
 
 type Item = {
@@ -92,11 +101,14 @@ export default function BackpackBrawl() {
   const [enemyHealth, setEnemyHealth] = useState(100);
   const [battleLog, setBattleLog] = useState<string[]>([]);
   const [isInBattle, setIsInBattle] = useState(false);
+  const battleIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Inventory state
-  const [inventory, setInventory] = useState<Item[]>([]);
-  const [shopItems, setShopItems] = useState<Item[]>([]);
+  // Inventory and shop state
+  const [inventory, setInventory] = useState<any[]>([]);
+  const [shopItems, setShopItems] = useState<any[]>([]);
+  const [equipment, setEquipment] = useState<any[]>([]);
 
+  // Login functions
   const handleLogin = async () => {
     if (!loginEmail || !loginPassword) return;
     setIsLoading(true);
@@ -110,8 +122,12 @@ export default function BackpackBrawl() {
       if (response.ok) {
         setUser(data.user);
         setCharacter(data.character);
+        setEquipment(data.character.equipment || []);
         setIsAuthenticated(true);
         localStorage.setItem('userId', data.user.id);
+        // Carregar loja, inventário e equipamentos após login
+        loadShopItems();
+        loadInventory();
       } else {
         alert(data.error || 'Erro ao fazer login');
       }
@@ -138,8 +154,12 @@ export default function BackpackBrawl() {
       if (response.ok) {
         setUser(data.user);
         setCharacter(data.character);
+        setEquipment(data.character.equipment || []);
         setIsAuthenticated(true);
         localStorage.setItem('userId', data.user.id);
+        // Carregar loja, inventário e equipamentos após registro
+        loadShopItems();
+        loadInventory();
       } else {
         alert(data.error || 'Erro ao registrar');
       }
@@ -172,53 +192,208 @@ export default function BackpackBrawl() {
     };
   };
 
-  const startBattle = () => {
+  const findBattle = () => {
+    console.log('[DEBUG] findBattle called');
+    // Para qualquer batalha anterior que esteja rodando
+    if (battleIntervalRef.current) {
+      clearInterval(battleIntervalRef.current);
+      battleIntervalRef.current = null;
+    }
+
     const newEnemy = generateEnemy();
+    console.log('[DEBUG] Enemy generated:', newEnemy);
     setEnemy(newEnemy);
     setPlayerHealth(character?.health || 100);
     setEnemyHealth(newEnemy.health);
-    setBattleLog([`⚔️ Batalha iniciada contra ${newEnemy.name}!`]);
-    setIsInBattle(true);
+    setBattleLog([`⚔️ Inimigo encontrado: ${newEnemy.name}! Clique em Iniciar Batalha Automática!`]);
+    // Reseta o estado de batalha anterior
+    setIsInBattle(false);
+    console.log('[DEBUG] Enemy state set');
   };
 
-  const performAttack = async () => {
-    if (!character || !enemy) return;
+  const startBattle = () => {
+    console.log('[DEBUG] startBattle called');
+    setIsInBattle(true);
+
+    // Limpa intervalo anterior se existir
+    if (battleIntervalRef.current) {
+      clearInterval(battleIntervalRef.current);
+    }
+
+    setBattleLog((prev) => [...prev, `⚔️ Batalha automática iniciada!`]);
+    console.log('[DEBUG] Starting battle interval');
+
+    // Inicia batalha automática
+    battleIntervalRef.current = setInterval(() => {
+      performSingleAttack();
+    }, 1000); // Ataca a cada 1 segundo
+    console.log('[DEBUG] Battle interval started');
+  };
+
+  const performSingleAttack = () => {
+    console.log('[DEBUG] performSingleAttack called', { character: !!character, enemy: !!enemy, isInBattle });
+    if (!character || !enemy || !isInBattle) {
+      // Para a batalha se algum estado for inválido
+      if (battleIntervalRef.current) {
+        clearInterval(battleIntervalRef.current);
+        battleIntervalRef.current = null;
+      }
+      return;
+    }
 
     const playerDamage = Math.max(1, character.attack - enemy.defense + Math.floor(Math.random() * 5));
     const enemyDamage = Math.max(1, enemy.attack - character.defense + Math.floor(Math.random() * 5));
 
-    const newPlayerHealth = Math.max(0, playerHealth - enemyDamage);
-    const newEnemyHealth = Math.max(0, enemyHealth - playerDamage);
+    console.log('[DEBUG] Attack calculated', { playerDamage, enemyDamage });
+
+    setPlayerHealth((current) => Math.max(0, current - enemyDamage));
+    setEnemyHealth((current) => Math.max(0, current - playerDamage));
 
     setBattleLog((prev) => [
       ...prev,
       `⚔️ Você causou ${playerDamage} de dano!`,
       `🛡️ ${enemy.name} causou ${enemyDamage} de dano em você!`,
     ]);
+  };
 
-    setPlayerHealth(newPlayerHealth);
-    setEnemyHealth(newEnemyHealth);
-
-    if (newEnemyHealth <= 0) {
-      setIsInBattle(false);
-      setBattleLog((prev) => [
-        ...prev,
-        `🎉 Vitória! Você derrotou ${enemy.name}!`,
-        `💰 Ganhou ${character.level * 10} moedas!`,
-      ]);
-      const coinsGained = character.level * 10;
-      if (user) {
-        setUser({ ...user, coins: user.coins + coinsGained, wins: user.wins + 1 });
+  // Monitora o fim da batalha
+  useEffect(() => {
+    if (!isInBattle) {
+      // Se não está em batalha, limpa qualquer intervalo
+      if (battleIntervalRef.current) {
+        clearInterval(battleIntervalRef.current);
+        battleIntervalRef.current = null;
       }
-    } else if (newPlayerHealth <= 0) {
+      return;
+    }
+
+    // Verifica se alguém perdeu
+    if (playerHealth <= 0) {
+      if (battleIntervalRef.current) {
+        clearInterval(battleIntervalRef.current);
+        battleIntervalRef.current = null;
+      }
       setIsInBattle(false);
       setBattleLog((prev) => [
         ...prev,
-        `💀 Derrota! Você foi derrotado por ${enemy.name}!`,
+        `💀 Derrota! Você foi derrotado por ${enemy?.name}!`,
       ]);
       if (user) {
         setUser({ ...user, losses: user.losses + 1 });
       }
+    }
+    // Verifica se o inimigo perdeu
+    else if (enemyHealth <= 0) {
+      if (battleIntervalRef.current) {
+        clearInterval(battleIntervalRef.current);
+        battleIntervalRef.current = null;
+      }
+      setIsInBattle(false);
+      const coinsGained = character?.level || 1 * 10;
+      setBattleLog((prev) => [
+        ...prev,
+        `🎉 Vitória! Você derrotou ${enemy?.name}!`,
+        `💰 Ganhou ${coinsGained} moedas!`,
+      ]);
+      if (user && character) {
+        setUser({ ...user, coins: user.coins + coinsGained, wins: user.wins + 1 });
+      }
+    }
+  }, [playerHealth, enemyHealth, isInBattle, enemy?.name, user, character?.level]);
+
+  const handlePurchase = async (item: any) => {
+    if (!user || user.coins < item.basePrice) return;
+
+    try {
+      const response = await fetch('/api/shop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': localStorage.getItem('userId') || '',
+        },
+        body: JSON.stringify({ itemId: item.id }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setUser({ ...user, coins: data.remainingCoins });
+        
+        // Recarrega o inventário do backend
+        await loadInventory();
+        
+        alert(`✅ Compra realizada! Você comprou ${item.name}`);
+      } else {
+        alert(data.error || 'Erro ao comprar item');
+      }
+    } catch (error) {
+      console.error('Purchase error:', error);
+      alert('Erro ao comprar item');
+    }
+  };
+
+  const handleEquip = async (itemId: string, slot: string) => {
+    try {
+      const response = await fetch('/api/equipment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': localStorage.getItem('userId') || '',
+        },
+        body: JSON.stringify({ itemId, slot }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        await loadCharacterWithEquipment();
+        alert('✅ Item equipado com sucesso!');
+      } else {
+        alert(data.error || 'Erro ao equipar item');
+      }
+    } catch (error) {
+      console.error('Equip error:', error);
+      alert('Erro ao equipar item');
+    }
+  };
+
+  const handleUnequip = async (slot: string) => {
+    try {
+      const response = await fetch(`/api/equipment?slot=${slot}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-id': localStorage.getItem('userId') || '',
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        await loadCharacterWithEquipment();
+        alert('✅ Item desequipado com sucesso!');
+      } else {
+        alert(data.error || 'Erro ao desequipar item');
+      }
+    } catch (error) {
+      console.error('Unequip error:', error);
+      alert('Erro ao desequipar item');
+    }
+  };
+
+  const loadCharacterWithEquipment = async () => {
+    try {
+      const response = await fetch('/api/character', {
+        headers: {
+          'x-user-id': localStorage.getItem('userId') || '',
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCharacter(data.character);
+        setEquipment(data.character.equipment || []);
+      }
+    } catch (error) {
+      console.error('Error loading character:', error);
     }
   };
 
@@ -244,46 +419,122 @@ export default function BackpackBrawl() {
 
   const getItemIcon = (type: string) => {
     switch (type) {
-      case 'WEAPON': return <WeaponIcon className="w-4 h-4" />;
-      case 'ARMOR': return <ArmorIcon className="w-4 h-4" />;
-      case 'ACCESSORY': return <AccessoryIcon className="w-4 h-4" />;
-      case 'POTION': return <Sparkles className="w-4 h-4" />;
-      default: return <Package className="w-4 h-4" />;
+      case 'WEAPON': return <WeaponIcon className="w-4 h-4 text-orange-400" />;
+      case 'ARMOR': return <ArmorIcon className="w-4 h-4 text-blue-400" />;
+      case 'ACCESSORY': return <AccessoryIcon className="w-4 h-4 text-yellow-400" />;
+      case 'POTION': return <Sparkles className="w-4 h-4 text-green-400" />;
+      default: return <Package className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const getEquippedItem = (slot: string) => {
+    return equipment.find((eq: any) => eq.slot === slot)?.item;
+  };
+
+  const getSlotName = (slot: string) => {
+    switch (slot) {
+      case 'WEAPON': return 'Arma';
+      case 'ARMOR': return 'Armadura';
+      case 'HELMET': return 'Capacete';
+      case 'ACCESSORY': return 'Acessório';
+      default: return slot;
+    }
+  };
+
+  const getSlotIcon = (slot: string) => {
+    switch (slot) {
+      case 'WEAPON': return <WeaponIcon className="w-5 h-5 text-orange-400" />;
+      case 'ARMOR': return <ArmorIcon className="w-5 h-5 text-blue-400" />;
+      case 'HELMET': return <Crown className="w-5 h-5 text-purple-400" />;
+      case 'ACCESSORY': return <AccessoryIcon className="w-5 h-5 text-yellow-400" />;
+      default: return <Package className="w-5 h-5 text-gray-400" />;
+    }
+  };
+
+  const loadUserData = async () => {
+    const storedUserId = localStorage.getItem('userId');
+    if (storedUserId) {
+      setIsAuthenticated(true);
+      // Load user data
+      try {
+        const response = await fetch('/api/auth/me', {
+          headers: {
+            'x-user-id': storedUserId,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+          setCharacter(data.character);
+          setEquipment(data.character.equipment || []);
+          // Carregar loja e inventário quando usuário já está autenticado
+          loadShopItems();
+          loadInventory();
+        } else {
+          // Se der erro, remove o userId inválido
+          localStorage.removeItem('userId');
+          setIsAuthenticated(false);
+        }
+      } catch (error) {
+        console.error('Error loading user:', error);
+        // Em caso de erro, não bloqueia o acesso
+        // Apenas mostra a tela de login
+        localStorage.removeItem('userId');
+        setIsAuthenticated(false);
+      }
+    }
+  };
+
+  const loadShopItems = async () => {
+    const storedUserId = localStorage.getItem('userId');
+    if (!storedUserId) return;
+
+    try {
+      const response = await fetch('/api/shop', {
+        headers: {
+          'x-user-id': storedUserId,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setShopItems(data.shopItems || []);
+      }
+    } catch (error) {
+      console.error('Error loading shop items:', error);
+    }
+  };
+
+  const loadInventory = async () => {
+    const storedUserId = localStorage.getItem('userId');
+    if (!storedUserId) return;
+
+    try {
+      const response = await fetch('/api/inventory', {
+        headers: {
+          'x-user-id': storedUserId,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setInventory(data.inventoryItems || []);
+      }
+    } catch (error) {
+      console.error('Error loading inventory:', error);
     }
   };
 
   useEffect(() => {
-    const loadUserData = async () => {
-      const storedUserId = localStorage.getItem('userId');
-      if (storedUserId) {
-        setIsAuthenticated(true);
-        // Load user data
-        try {
-          const response = await fetch('/api/auth/me', {
-            headers: {
-              'x-user-id': storedUserId,
-            },
-          });
-          if (response.ok) {
-            const data = await response.json();
-            setUser(data.user);
-            setCharacter(data.character);
-          } else {
-            // Se der erro, remove o userId inválido
-            localStorage.removeItem('userId');
-            setIsAuthenticated(false);
-          }
-        } catch (error) {
-          console.error('Error loading user:', error);
-          // Em caso de erro, não bloqueia o acesso
-          // Apenas mostra a tela de login
-          localStorage.removeItem('userId');
-          setIsAuthenticated(false);
-        }
+    loadUserData();
+  }, []);
+
+  // Cleanup do intervalo quando o componente for desmontado
+  useEffect(() => {
+    return () => {
+      if (battleIntervalRef.current) {
+        clearInterval(battleIntervalRef.current);
+        battleIntervalRef.current = null;
       }
     };
-
-    loadUserData();
   }, []);
 
   if (!isAuthenticated) {
@@ -461,23 +712,23 @@ export default function BackpackBrawl() {
       <main className="flex-1 container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-5 bg-slate-800/50 border border-slate-700">
-            <TabsTrigger value="battle" className="data-[state=active]:bg-orange-500">
+            <TabsTrigger value="battle" className="data-[state=active]:bg-orange-500 text-white">
               <Swords className="w-4 h-4 mr-2" />
               Batalha
             </TabsTrigger>
-            <TabsTrigger value="inventory" className="data-[state=active]:bg-orange-500">
+            <TabsTrigger value="inventory" className="data-[state=active]:bg-orange-500 text-white">
               <Package className="w-4 h-4 mr-2" />
               Inventário
             </TabsTrigger>
-            <TabsTrigger value="shop" className="data-[state=active]:bg-orange-500">
+            <TabsTrigger value="shop" className="data-[state=active]:bg-orange-500 text-white">
               <Store className="w-4 h-4 mr-2" />
               Loja
             </TabsTrigger>
-            <TabsTrigger value="ranking" className="data-[state=active]:bg-orange-500">
+            <TabsTrigger value="ranking" className="data-[state=active]:bg-orange-500 text-white">
               <Trophy className="w-4 h-4 mr-2" />
               Ranking
             </TabsTrigger>
-            <TabsTrigger value="profile" className="data-[state=active]:bg-orange-500">
+            <TabsTrigger value="profile" className="data-[state=active]:bg-orange-500 text-white">
               <User className="w-4 h-4 mr-2" />
               Perfil
             </TabsTrigger>
@@ -485,14 +736,14 @@ export default function BackpackBrawl() {
 
           {/* Battle Tab */}
           <TabsContent value="battle" className="space-y-6">
-            {!isInBattle ? (
+            {!enemy ? (
               <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-white">
                     <Swords className="w-6 h-6 text-orange-500" />
                     Arena de Batalha
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-slate-400">
                     Encontre um oponente e mostre sua força!
                   </CardDescription>
                 </CardHeader>
@@ -571,7 +822,7 @@ export default function BackpackBrawl() {
                         </div>
                         <Separator />
                         <Button
-                          onClick={startBattle}
+                          onClick={findBattle}
                           className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
                           size="lg"
                         >
@@ -634,16 +885,47 @@ export default function BackpackBrawl() {
                     </CardContent>
                   </Card>
 
-                  {/* Action Button */}
-                  {playerHealth > 0 && enemyHealth > 0 && (
-                    <Button
-                      onClick={performAttack}
-                      className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
-                      size="lg"
-                    >
-                      <Swords className="w-5 h-5 mr-2" />
-                      Atacar!
-                    </Button>
+                  {/* Battle Status Indicator */}
+                  {isInBattle && playerHealth > 0 && enemyHealth > 0 && (
+                    <div className="text-center py-4">
+                      <div className="inline-flex items-center gap-2 px-6 py-3 bg-orange-500/20 border border-orange-500 rounded-full">
+                        <Zap className="w-5 h-5 text-orange-400 animate-pulse" />
+                        <span className="text-lg font-semibold text-orange-400">Batalha Automática em Andamento</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Victory/Defeat Messages */}
+                  {(!isInBattle || playerHealth <= 0 || enemyHealth <= 0) && (
+                    <div className="text-center py-4">
+                      {playerHealth <= 0 ? (
+                        <div className="inline-flex items-center gap-2 px-6 py-3 bg-red-500/20 border border-red-500 rounded-full">
+                          <span className="text-lg font-semibold text-red-400">💀 Derrota!</span>
+                        </div>
+                      ) : enemyHealth <= 0 ? (
+                        <div className="inline-flex items-center gap-2 px-6 py-3 bg-green-500/20 border border-green-500 rounded-full">
+                          <span className="text-lg font-semibold text-green-400">🎉 Vitória!</span>
+                        </div>
+                      ) : enemy && playerHealth > 0 && !isInBattle ? (
+                        <Button
+                          onClick={startBattle}
+                          className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                          size="lg"
+                        >
+                          <Zap className="w-5 h-5 mr-2" />
+                          Iniciar Batalha Automática!
+                        </Button>
+                      ) : (
+                        <Button
+                          onClick={findBattle}
+                          className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                          size="lg"
+                        >
+                          <Swords className="w-5 h-5 mr-2" />
+                          Procurar Batalha
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -654,54 +936,142 @@ export default function BackpackBrawl() {
           <TabsContent value="inventory">
             <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-white">
                   <Package className="w-6 h-6 text-orange-500" />
                   Inventário
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-slate-400">
                   Gerencie seus itens e equipamentos
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-6">
+                {/* Equipment Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-orange-500" />
+                    Equipamentos Equipados
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {(['WEAPON', 'ARMOR', 'ACCESSORY'] as const).map((slot) => {
+                      const equippedItem = getEquippedItem(slot);
+                      return (
+                        <Card
+                          key={slot}
+                          className={`border-slate-600 bg-slate-900/50 transition-colors ${
+                            equippedItem ? 'border-orange-500' : 'border-slate-700'
+                          }`}
+                        >
+                          <CardContent className="p-4 space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-2">
+                                {getSlotIcon(slot)}
+                                <div>
+                                  <p className="text-xs text-slate-400">{getSlotName(slot)}</p>
+                                  {equippedItem ? (
+                                    <>
+                                      <p className="text-sm font-semibold text-white">{equippedItem.name}</p>
+                                      <Badge className={`text-xs ${getRarityColor(equippedItem.rarity)} border-0 bg-transparent`}>
+                                        {getRarityName(equippedItem.rarity)}
+                                      </Badge>
+                                    </>
+                                  ) : (
+                                    <p className="text-sm text-slate-500">Vazio</p>
+                                  )}
+                                </div>
+                              </div>
+                              {equippedItem && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                  onClick={() => handleUnequip(slot)}
+                                >
+                                  ✕
+                                </Button>
+                              )}
+                            </div>
+                            {equippedItem && (
+                              <div className="space-y-1">
+                                {equippedItem.attackBonus > 0 && (
+                                  <p className="text-xs text-orange-400">+{equippedItem.attackBonus} Ataque</p>
+                                )}
+                                {equippedItem.defenseBonus > 0 && (
+                                  <p className="text-xs text-blue-400">+{equippedItem.defenseBonus} Defesa</p>
+                                )}
+                                {equippedItem.healthBonus > 0 && (
+                                  <p className="text-xs text-red-400">+{equippedItem.healthBonus} Vida</p>
+                                )}
+                                {equippedItem.speedBonus > 0 && (
+                                  <p className="text-xs text-yellow-400">+{equippedItem.speedBonus} Velocidade</p>
+                                )}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <Separator className="bg-slate-700" />
+
+                {/* Inventory Section */}
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Package className="w-5 h-5 text-orange-500" />
+                  Inventário
+                </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { name: 'Espada de Madeira', rarity: 'COMMON', type: 'WEAPON', attackBonus: 5 },
-                    { name: 'Armadura de Ferro', rarity: 'UNCOMMON', type: 'ARMOR', defenseBonus: 10, healthBonus: 25 },
-                    { name: 'Poção de Vida', rarity: 'COMMON', type: 'POTION', healthBonus: 20 },
-                    { name: 'Anel de Sorte', rarity: 'COMMON', type: 'ACCESSORY', speedBonus: 2 },
-                    { name: 'Machado de Guerra', rarity: 'UNCOMMON', type: 'WEAPON', attackBonus: 15 },
-                    { name: 'Armadura Dragônica', rarity: 'EPIC', type: 'ARMOR', defenseBonus: 25, healthBonus: 60 },
-                  ].map((item, index) => (
-                    <Card key={index} className="border-slate-600 bg-slate-900/50 hover:border-orange-500 transition-colors">
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            {getItemIcon(item.type)}
-                            <div>
-                              <p className="text-sm font-semibold text-white">{item.name}</p>
-                              <Badge className={`text-xs ${getRarityColor(item.rarity)} border-0 bg-transparent`}>
-                                {getRarityName(item.rarity)}
-                              </Badge>
+                  {inventory.length === 0 ? (
+                    <p className="col-span-full text-center text-slate-400 py-8">
+                      Seu inventário está vazio. Vá à loja para comprar itens!
+                    </p>
+                  ) : (
+                    inventory.map((invItem: any) => (
+                      <Card key={invItem.id} className="border-slate-600 bg-slate-900/50 hover:border-orange-500 transition-colors">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-2">
+                              {getItemIcon(invItem.item.type)}
+                              <div>
+                                <p className="text-sm font-semibold text-white">{invItem.item.name}</p>
+                                <Badge className={`text-xs ${getRarityColor(invItem.item.rarity)} border-0 bg-transparent`}>
+                                  {getRarityName(invItem.item.rarity)}
+                                </Badge>
+                                {invItem.quantity > 1 && (
+                                  <Badge className="text-xs bg-orange-500 text-white ml-2">
+                                    x{invItem.quantity}
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="space-y-1">
-                          {item.attackBonus > 0 && (
-                            <p className="text-xs text-orange-400">+{item.attackBonus} Ataque</p>
+                          <div className="space-y-1">
+                            {invItem.item.attackBonus > 0 && (
+                              <p className="text-xs text-orange-400">+{invItem.item.attackBonus} Ataque</p>
+                            )}
+                            {invItem.item.defenseBonus > 0 && (
+                              <p className="text-xs text-blue-400">+{invItem.item.defenseBonus} Defesa</p>
+                            )}
+                            {invItem.item.healthBonus > 0 && (
+                              <p className="text-xs text-red-400">+{invItem.item.healthBonus} Vida</p>
+                            )}
+                            {invItem.item.speedBonus > 0 && (
+                              <p className="text-xs text-yellow-400">+{invItem.item.speedBonus} Velocidade</p>
+                            )}
+                          </div>
+                          {['WEAPON', 'ARMOR', 'ACCESSORY'].includes(invItem.item.type) && (
+                            <Button
+                              size="sm"
+                              className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+                              onClick={() => handleEquip(invItem.itemId, invItem.item.type)}
+                            >
+                              Equipar
+                            </Button>
                           )}
-                          {item.defenseBonus > 0 && (
-                            <p className="text-xs text-blue-400">+{item.defenseBonus} Defesa</p>
-                          )}
-                          {item.healthBonus > 0 && (
-                            <p className="text-xs text-red-400">+{item.healthBonus} Vida</p>
-                          )}
-                          {item.speedBonus > 0 && (
-                            <p className="text-xs text-yellow-400">+{item.speedBonus} Velocidade</p>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -711,25 +1081,18 @@ export default function BackpackBrawl() {
           <TabsContent value="shop">
             <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-white">
                   <Store className="w-6 h-6 text-orange-500" />
                   Loja
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-slate-400">
                   Compre itens para fortalecer seu personagem
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { name: 'Espada de Ferro', rarity: 'COMMON', type: 'WEAPON', attackBonus: 10, price: 25 },
-                    { name: 'Armadura de Aço', rarity: 'UNCOMMON', type: 'ARMOR', defenseBonus: 12, healthBonus: 30, price: 90 },
-                    { name: 'Poção de Vida Média', rarity: 'UNCOMMON', type: 'POTION', healthBonus: 40, price: 25 },
-                    { name: 'Anel de Proteção', rarity: 'UNCOMMON', type: 'ACCESSORY', defenseBonus: 5, price: 40 },
-                    { name: 'Lâmina Sombria', rarity: 'RARE', type: 'WEAPON', attackBonus: 25, price: 150 },
-                    { name: 'Armadura de Placas', rarity: 'RARE', type: 'ARMOR', defenseBonus: 18, healthBonus: 45, price: 180 },
-                  ].map((item, index) => (
-                    <Card key={index} className="border-slate-600 bg-slate-900/50 hover:border-orange-500 transition-colors">
+                  {shopItems.map((item: any, index) => (
+                    <Card key={item.id} className="border-slate-600 bg-slate-900/50 hover:border-orange-500 transition-colors">
                       <CardContent className="p-4 space-y-3">
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-2">
@@ -756,13 +1119,14 @@ export default function BackpackBrawl() {
                         <div className="flex items-center justify-between pt-2">
                           <div className="flex items-center gap-1">
                             <Coins className="w-4 h-4 text-yellow-500" />
-                            <span className="text-sm font-semibold text-yellow-400">{item.price}</span>
+                            <span className="text-sm font-semibold text-yellow-400">{item.basePrice}</span>
                           </div>
                           <Button
                             size="sm"
                             variant="outline"
                             className="border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white"
-                            disabled={(user?.coins || 0) < item.price}
+                            disabled={(user?.coins || 0) < item.basePrice}
+                            onClick={() => handlePurchase(item)}
                           >
                             Comprar
                           </Button>
@@ -779,11 +1143,11 @@ export default function BackpackBrawl() {
           <TabsContent value="ranking">
             <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-white">
                   <Trophy className="w-6 h-6 text-orange-500" />
                   Ranking Global
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-slate-400">
                   Os melhores guerreiros do reino
                 </CardDescription>
               </CardHeader>
@@ -837,11 +1201,11 @@ export default function BackpackBrawl() {
           <TabsContent value="profile">
             <Card className="border-slate-700 bg-slate-800/50 backdrop-blur">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-white">
                   <User className="w-6 h-6 text-orange-500" />
                   Perfil
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-slate-400">
                   Suas estatísticas e progresso
                 </CardDescription>
               </CardHeader>

@@ -1,5 +1,10 @@
 import { db } from '@/lib/db';
 import { ItemRarity, ItemType, ChestType } from '@prisma/client';
+import crypto from 'crypto';
+
+function hashPassword(password: string): string {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
 
 async function main() {
   console.log('🌱 Starting seed...');
@@ -82,7 +87,7 @@ async function main() {
     data: {
       email: 'demo@backpackbrawl.com',
       name: 'Demo Warrior',
-      password: 'demo123',
+      password: hashPassword('demo123'),
       coins: 500,
       level: 5,
       experience: 2500,
