@@ -12,82 +12,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { enemyName, enemyLevel } = await request.json();
+    const { won, coinsGained } = await request.json();
 
-    // Get user's active character
-    const character = await db.character.findFirst({
-      where: { userId, isActive: true },
-      include: {
-        equipment: {
-          include: {
-            item: true,
-          },
-        },
-      },
+    // Update user stats
+    const user = await db.user.findUnique({
+      where: { id: userId },
     });
 
-    if (!character) {
+    if (!user) {
       return NextResponse.json(
-        { error: 'Personagem não encontrado' },
+        { error: 'Usuário não encontrado' },
         { status: 404 }
       );
     }
 
-    // Calculate total stats with equipment bonuses
-    let totalAttack = character.attack;
-    let totalDefense = character.defense;
-    let totalHealth = character.health;
-    let totalMaxHealth = character.maxHealth;
-    let totalSpeed = character.speed;
-
-    character.equipment.forEach((eq) => {
-      totalAttack += eq.item.attackBonus;
-      totalDefense += eq.item.defenseBonus;
-      totalHealth += eq.item.healthBonus;
-      totalMaxHealth += eq.item.healthBonus;
-      totalSpeed += eq.item.speedBonus;
-    });
-
-    // Generate enemy stats
-    const levelBonus = enemyLevel * 2;
-    const enemyStats = {
-      name: enemyName,
-      health: 80 + levelBonus * 10,
-      maxHealth: 80 + levelBonus * 10,
-      attack: 8 + levelBonus,
-      defense: 3 + levelBonus / 2,
-    };
-
-    // Create battle
-    const battle = await db.battle.create({
+    const updatedUser = await db.user.update({
+      where: { id: userId },
       data: {
-        player1Id: userId,
-        player2Id: 'enemy',
-        player1Health: totalHealth,
-        player2Health: enemyStats.health,
-        player1MaxHealth: totalMaxHealth,
-        player2MaxHealth: enemyStats.maxHealth,
-        status: 'IN_PROGRESS',
-        currentTurn: 1,
+        wins: won ? user.wins + 1 : user.wins,
+        losses: won ? user.losses : user.losses + 1,
+        coins: won ? user.coins + coinsGained : user.coins,
       },
     });
+
+    const { password: _, ...userWithoutPassword } = updatedUser;
 
     return NextResponse.json({
-      battle,
-      playerStats: {
-        name: character.name,
-        health: totalHealth,
-        maxHealth: totalMaxHealth,
-        attack: totalAttack,
-        defense: totalDefense,
-        speed: totalSpeed,
-      },
-      enemyStats,
+      success: true,
+      user: userWithoutPassword,
     });
   } catch (error) {
-    console.error('Create battle error:', error);
+    console.error('Battle result error:', error);
     return NextResponse.json(
-      { error: 'Erro ao criar batalha' },
+      { error: 'Erro ao salvar resultado da batalha' },
       { status: 500 }
     );
   }

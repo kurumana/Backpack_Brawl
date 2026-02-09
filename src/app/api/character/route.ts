@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
       health: character.health,
       maxHealth: character.maxHealth,
       speed: character.speed,
+      level: character.level,
     };
 
     character.equipment.forEach((eq) => {

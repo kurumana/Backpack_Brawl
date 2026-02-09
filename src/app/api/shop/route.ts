@@ -6,11 +6,14 @@ export async function GET(request: NextRequest) {
     const userId = request.headers.get('x-user-id');
 
     if (!userId) {
+      console.log('[SHOP API] Unauthorized - no userId provided');
       return NextResponse.json(
         { error: 'Não autenticado' },
         { status: 401 }
       );
     }
+
+    console.log('[SHOP API] Loading shop for user:', userId);
 
     // Get available items from shop (random selection)
     const shopItems = await db.itemTemplate.findMany({
@@ -19,11 +22,20 @@ export async function GET(request: NextRequest) {
       take: 12,
     });
 
-    console.log(`[DEBUG] Shop loaded: ${shopItems.length} items for user ${userId}`);
+    console.log(`[SHOP API] Shop loaded: ${shopItems.length} items`);
+    console.log('[SHOP API] Items:', JSON.stringify(shopItems, null, 2));
+    console.log('[SHOP API] First item:', shopItems[0]);
 
-    return NextResponse.json({ shopItems });
+    const responseBody = { shopItems };
+    console.log('[SHOP API] Response body:', JSON.stringify(responseBody, null, 2));
+
+    return NextResponse.json(responseBody, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      },
+    });
   } catch (error) {
-    console.error('Get shop error:', error);
+    console.error('[SHOP API] Get shop error:', error);
     return NextResponse.json(
       { error: 'Erro ao buscar loja' },
       { status: 500 }

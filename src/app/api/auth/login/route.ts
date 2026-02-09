@@ -51,9 +51,33 @@ export async function POST(request: NextRequest) {
 
     const { password: _, ...userWithoutPassword } = user;
 
+    // Calculate total stats with equipment bonuses
+    let totalStats = null;
+    const character = user.characters[0];
+
+    if (character) {
+      totalStats = {
+        attack: character.attack,
+        defense: character.defense,
+        health: character.health,
+        maxHealth: character.maxHealth,
+        speed: character.speed,
+        level: character.level,
+      };
+
+      character.equipment.forEach((eq) => {
+        totalStats.attack += eq.item.attackBonus;
+        totalStats.defense += eq.item.defenseBonus;
+        totalStats.health += eq.item.healthBonus;
+        totalStats.maxHealth += eq.item.healthBonus;
+        totalStats.speed += eq.item.speedBonus;
+      });
+    }
+
     return NextResponse.json({
       user: userWithoutPassword,
-      character: user.characters[0] || null,
+      character: character,
+      totalStats,
     });
   } catch (error) {
     console.error('Login error:', error);

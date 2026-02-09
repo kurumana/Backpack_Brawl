@@ -98,9 +98,34 @@ export async function POST(request: NextRequest) {
 
     const { password: _, ...userWithoutPassword } = user;
 
+    // Calculate total stats with equipment bonuses
+    const totalStats = {
+      attack: character.attack,
+      defense: character.defense,
+      health: character.health,
+      maxHealth: character.maxHealth,
+      speed: character.speed,
+      level: character.level,
+    };
+
+    // Get equipment to add bonuses
+    const equipment = await db.equipment.findMany({
+      where: { characterId: character.id },
+      include: { item: true },
+    });
+
+    equipment.forEach((eq) => {
+      totalStats.attack += eq.item.attackBonus;
+      totalStats.defense += eq.item.defenseBonus;
+      totalStats.health += eq.item.healthBonus;
+      totalStats.maxHealth += eq.item.healthBonus;
+      totalStats.speed += eq.item.speedBonus;
+    });
+
     return NextResponse.json({
       user: userWithoutPassword,
       character,
+      totalStats,
     });
   } catch (error) {
     console.error('Registration error:', error);

@@ -1,7 +1,5 @@
 'use client';
 
-/* eslint-disable react-hooks/set-state-in-effect */
-
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -60,6 +58,15 @@ type Character = {
   equipment?: any[];
 };
 
+type TotalStats = {
+  attack: number;
+  defense: number;
+  health: number;
+  maxHealth: number;
+  speed: number;
+  level: number;
+};
+
 type Equipment = {
   id: string;
   slot: string;
@@ -83,6 +90,7 @@ export default function BackpackBrawl() {
   const [isLogin, setIsLogin] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [character, setCharacter] = useState<Character | null>(null);
+  const [totalStats, setTotalStats] = useState<TotalStats | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('battle');
 
@@ -102,6 +110,10 @@ export default function BackpackBrawl() {
   const [battleLog, setBattleLog] = useState<string[]>([]);
   const [isInBattle, setIsInBattle] = useState(false);
   const battleIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const battleShouldContinueRef = useRef(false); // Flag para evitar problemas de closure
+  const characterRef = useRef(character);
+  const totalStatsRef = useRef(totalStats);
+  const enemyRef = useRef(enemy);
 
   // Inventory and shop state
   const [inventory, setInventory] = useState<any[]>([]);
@@ -123,11 +135,16 @@ export default function BackpackBrawl() {
         setUser(data.user);
         setCharacter(data.character);
         setEquipment(data.character.equipment || []);
+        setTotalStats(data.totalStats);
         setIsAuthenticated(true);
         localStorage.setItem('userId', data.user.id);
-        // Carregar loja, inventário e equipamentos após login
-        loadShopItems();
-        loadInventory();
+        // Carregar loja e inventário após login
+        await loadShopItems();
+        await loadInventory();
+        console.log('[LOGIN] Stats carregados', {
+          totalStats: data.totalStats,
+          character: data.character,
+        });
       } else {
         alert(data.error || 'Erro ao fazer login');
       }
@@ -155,11 +172,16 @@ export default function BackpackBrawl() {
         setUser(data.user);
         setCharacter(data.character);
         setEquipment(data.character.equipment || []);
+        setTotalStats(data.totalStats);
         setIsAuthenticated(true);
         localStorage.setItem('userId', data.user.id);
-        // Carregar loja, inventário e equipamentos após registro
-        loadShopItems();
-        loadInventory();
+        // Carregar loja e inventário após registro
+        await loadShopItems();
+        await loadInventory();
+        console.log('[REGISTER] Stats carregados', {
+          totalStats: data.totalStats,
+          character: data.character,
+        });
       } else {
         alert(data.error || 'Erro ao registrar');
       }
@@ -172,6 +194,8 @@ export default function BackpackBrawl() {
   const handleLogout = () => {
     setUser(null);
     setCharacter(null);
+    setTotalStats(null);
+    setShopItems([]);
     setIsAuthenticated(false);
     localStorage.removeItem('userId');
   };
@@ -193,27 +217,42 @@ export default function BackpackBrawl() {
   };
 
   const findBattle = () => {
-    console.log('[DEBUG] findBattle called');
+    console.log('[BATTLE] findBattle chamado');
     // Para qualquer batalha anterior que esteja rodando
     if (battleIntervalRef.current) {
       clearInterval(battleIntervalRef.current);
       battleIntervalRef.current = null;
     }
+    // Reseta a flag de batalha
+    battleShouldContinueRef.current = false;
 
     const newEnemy = generateEnemy();
-    console.log('[DEBUG] Enemy generated:', newEnemy);
     setEnemy(newEnemy);
-    setPlayerHealth(character?.health || 100);
+    setPlayerHealth(totalStats?.health || character?.health || 100);
     setEnemyHealth(newEnemy.health);
     setBattleLog([`⚔️ Inimigo encontrado: ${newEnemy.name}! Clique em Iniciar Batalha Automática!`]);
     // Reseta o estado de batalha anterior
     setIsInBattle(false);
-    console.log('[DEBUG] Enemy state set');
+
+    console.log('[BATTLE] Inimigo gerado', {
+      enemyName: newEnemy.name,
+      enemyHealth: newEnemy.health,
+      totalStats: totalStats,
+      characterHealth: character?.health,
+      playerHealth: totalStats?.health || character?.health || 100,
+    });
   };
 
   const startBattle = () => {
-    console.log('[DEBUG] startBattle called');
+    console.log('[BATTLE] startBattle chamado', {
+      battleShouldContinueRef: battleShouldContinueRef.current,
+      enemyRef: enemyRef.current,
+      totalStatsRef: totalStatsRef.current,
+      characterRef: characterRef.current,
+    });
+
     setIsInBattle(true);
+    battleShouldContinueRef.current = true; // Ativa a flag para os ataques
 
     // Limpa intervalo anterior se existir
     if (battleIntervalRef.current) {
@@ -221,19 +260,27 @@ export default function BackpackBrawl() {
     }
 
     setBattleLog((prev) => [...prev, `⚔️ Batalha automática iniciada!`]);
-    console.log('[DEBUG] Starting battle interval');
+
+    console.log('[BATTLE] Intervalo iniciado, battleShouldContinue:', battleShouldContinueRef.current);
 
     // Inicia batalha automática
     battleIntervalRef.current = setInterval(() => {
       performSingleAttack();
     }, 1000); // Ataca a cada 1 segundo
-    console.log('[DEBUG] Battle interval started');
   };
 
   const performSingleAttack = () => {
-    console.log('[DEBUG] performSingleAttack called', { character: !!character, enemy: !!enemy, isInBattle });
-    if (!character || !enemy || !isInBattle) {
-      // Para a batalha se algum estado for inválido
+    console.log('[BATTLE] performSingleAttack chamado', {
+      character: !!characterRef.current,
+      enemy: !!enemyRef.current,
+      totalStats: !!totalStatsRef.current,
+      battleShouldContinue: battleShouldContinueRef.current,
+      enemyName: enemyRef.current?.name,
+      totalStatsValue: totalStatsRef.current,
+    });
+
+    if (!characterRef.current || !enemyRef.current || !totalStatsRef.current || !battleShouldContinueRef.current) {
+      console.log('[BATTLE] Retornando cedo - uma das condições não foi atendida');
       if (battleIntervalRef.current) {
         clearInterval(battleIntervalRef.current);
         battleIntervalRef.current = null;
@@ -241,10 +288,18 @@ export default function BackpackBrawl() {
       return;
     }
 
-    const playerDamage = Math.max(1, character.attack - enemy.defense + Math.floor(Math.random() * 5));
-    const enemyDamage = Math.max(1, enemy.attack - character.defense + Math.floor(Math.random() * 5));
+    const currentEnemy = enemyRef.current;
+    const currentTotalStats = totalStatsRef.current;
 
-    console.log('[DEBUG] Attack calculated', { playerDamage, enemyDamage });
+    const playerDamage = Math.max(1, currentTotalStats.attack - currentEnemy.defense + Math.floor(Math.random() * 5));
+    const enemyDamage = Math.max(1, currentEnemy.attack - currentTotalStats.defense + Math.floor(Math.random() * 5));
+
+    console.log('[BATTLE] Ataque executado', {
+      playerDamage,
+      enemyDamage,
+      playerName: characterRef.current?.name,
+      enemyName: currentEnemy.name,
+    });
 
     setPlayerHealth((current) => Math.max(0, current - enemyDamage));
     setEnemyHealth((current) => Math.max(0, current - playerDamage));
@@ -252,14 +307,42 @@ export default function BackpackBrawl() {
     setBattleLog((prev) => [
       ...prev,
       `⚔️ Você causou ${playerDamage} de dano!`,
-      `🛡️ ${enemy.name} causou ${enemyDamage} de dano em você!`,
+      `🛡️ ${currentEnemy.name} causou ${enemyDamage} de dano em você!`,
     ]);
+  };
+
+  const saveBattleResult = async (won: boolean, coinsGained: number) => {
+    try {
+      const response = await fetch('/api/battle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': localStorage.getItem('userId') || '',
+        },
+        body: JSON.stringify({ won, coinsGained }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setUser(data.user);
+        console.log('[BATTLE] Resultado salvo no backend', {
+          won,
+          coinsGained,
+          user: data.user,
+        });
+      } else {
+        console.error('[BATTLE] Erro ao salvar resultado', data.error);
+      }
+    } catch (error) {
+      console.error('[BATTLE] Erro ao salvar resultado da batalha:', error);
+    }
   };
 
   // Monitora o fim da batalha
   useEffect(() => {
-    if (!isInBattle) {
-      // Se não está em batalha, limpa qualquer intervalo
+    if (!battleShouldContinueRef.current) {
+      // Se a flag não está ativa, limpa qualquer intervalo
       if (battleIntervalRef.current) {
         clearInterval(battleIntervalRef.current);
         battleIntervalRef.current = null;
@@ -269,40 +352,41 @@ export default function BackpackBrawl() {
 
     // Verifica se alguém perdeu
     if (playerHealth <= 0) {
-      if (battleIntervalRef.current) {
-        clearInterval(battleIntervalRef.current);
-        battleIntervalRef.current = null;
-      }
+      battleShouldContinueRef.current = false; // Desativa a flag
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsInBattle(false);
+      const enemyName = enemyRef.current?.name || 'inimigo';
+      setEnemy(null); // Limpa o inimigo após derrota
       setBattleLog((prev) => [
         ...prev,
-        `💀 Derrota! Você foi derrotado por ${enemy?.name}!`,
+        `💀 Derrota! Você foi derrotado por ${enemyName}!`,
       ]);
-      if (user) {
-        setUser({ ...user, losses: user.losses + 1 });
-      }
+
+      // Salvar resultado no backend
+      saveBattleResult(false, 0);
     }
     // Verifica se o inimigo perdeu
     else if (enemyHealth <= 0) {
-      if (battleIntervalRef.current) {
-        clearInterval(battleIntervalRef.current);
-        battleIntervalRef.current = null;
-      }
+      battleShouldContinueRef.current = false; // Desativa a flag
       setIsInBattle(false);
-      const coinsGained = character?.level || 1 * 10;
+      const enemyName = enemyRef.current?.name || 'inimigo';
+      const level = totalStatsRef.current?.level || characterRef.current?.level || 1;
+      const coinsGained = level * 10;
+      setEnemy(null); // Limpa o inimigo após vitória
       setBattleLog((prev) => [
         ...prev,
-        `🎉 Vitória! Você derrotou ${enemy?.name}!`,
+        `🎉 Vitória! Você derrotou ${enemyName}!`,
         `💰 Ganhou ${coinsGained} moedas!`,
       ]);
-      if (user && character) {
-        setUser({ ...user, coins: user.coins + coinsGained, wins: user.wins + 1 });
-      }
+
+      // Salvar resultado no backend
+      saveBattleResult(true, coinsGained);
     }
-  }, [playerHealth, enemyHealth, isInBattle, enemy?.name, user, character?.level]);
+  }, [playerHealth, enemyHealth]);
 
   const handlePurchase = async (item: any) => {
     if (!user || user.coins < item.basePrice) return;
+
 
     try {
       const response = await fetch('/api/shop', {
@@ -391,6 +475,13 @@ export default function BackpackBrawl() {
         const data = await response.json();
         setCharacter(data.character);
         setEquipment(data.character.equipment || []);
+        setTotalStats(data.totalStats); // Armazena os stats totais calculados
+        console.log('[CHARACTER] Stats carregados com sucesso', {
+          totalStats: data.totalStats,
+          equipment: data.character.equipment?.length,
+        });
+      } else {
+        console.error('[CHARACTER] Erro ao carregar character', response.status);
       }
     } catch (error) {
       console.error('Error loading character:', error);
@@ -467,9 +558,13 @@ export default function BackpackBrawl() {
           setUser(data.user);
           setCharacter(data.character);
           setEquipment(data.character.equipment || []);
+
+          // Carregar totalStats usando a API de character
+          await loadCharacterWithEquipment();
+
           // Carregar loja e inventário quando usuário já está autenticado
-          loadShopItems();
-          loadInventory();
+          await loadShopItems();
+          await loadInventory();
         } else {
           // Se der erro, remove o userId inválido
           localStorage.removeItem('userId');
@@ -487,20 +582,37 @@ export default function BackpackBrawl() {
 
   const loadShopItems = async () => {
     const storedUserId = localStorage.getItem('userId');
-    if (!storedUserId) return;
+    if (!storedUserId) {
+      console.log('[SHOP] Nenhum userId encontrado no localStorage');
+      return;
+    }
+
+    const cacheBuster = Date.now();
+    console.log('[SHOP] Carregando loja para usuário', storedUserId, 'cacheBuster:', cacheBuster);
 
     try {
-      const response = await fetch('/api/shop', {
+      const response = await fetch(`/api/shop?_t=${cacheBuster}`, {
         headers: {
           'x-user-id': storedUserId,
         },
       });
+
+      console.log('[SHOP] Response status:', response.status, response.statusText);
+      console.log('[SHOP] Response OK:', response.ok);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('[SHOP] Dados recebidos', JSON.stringify(data, null, 2));
+        console.log('[SHOP] Quantidade de itens:', data.shopItems?.length);
+        console.log('[SHOP] Itens:', data.shopItems);
         setShopItems(data.shopItems || []);
+      } else {
+        const errorData = await response.json();
+        console.error('[SHOP] Erro ao carregar loja:', response.status, errorData);
       }
     } catch (error) {
-      console.error('Error loading shop items:', error);
+      console.error('[SHOP] Error loading shop items:', error);
+      console.error('[SHOP] Error stack:', error.stack);
     }
   };
 
@@ -523,9 +635,11 @@ export default function BackpackBrawl() {
     }
   };
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     loadUserData();
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Cleanup do intervalo quando o componente for desmontado
   useEffect(() => {
@@ -536,6 +650,27 @@ export default function BackpackBrawl() {
       }
     };
   }, []);
+
+  // Atualiza os refs para evitar problemas de closure
+  useEffect(() => {
+    characterRef.current = character;
+  }, [character]);
+
+  useEffect(() => {
+    totalStatsRef.current = totalStats;
+  }, [totalStats]);
+
+  useEffect(() => {
+    enemyRef.current = enemy;
+  }, [enemy]);
+
+  // Log para monitorar quando shopItems muda
+  useEffect(() => {
+    console.log('[SHOP] Estado shopItems atualizado:', {
+      length: shopItems.length,
+      items: shopItems,
+    });
+  }, [shopItems]);
 
   if (!isAuthenticated) {
     return (
@@ -761,7 +896,7 @@ export default function BackpackBrawl() {
                             <span className="text-sm text-slate-300">HP</span>
                           </div>
                           <span className="font-semibold text-red-400">
-                            {character?.health || 100} / {character?.maxHealth || 100}
+                            {totalStats?.health || character?.health || 100} / {totalStats?.maxHealth || character?.maxHealth || 100}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
@@ -770,7 +905,7 @@ export default function BackpackBrawl() {
                             <span className="text-sm text-slate-300">Ataque</span>
                           </div>
                           <span className="font-semibold text-orange-400">
-                            {character?.attack || 10}
+                            {totalStats?.attack || character?.attack || 10}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
@@ -779,7 +914,7 @@ export default function BackpackBrawl() {
                             <span className="text-sm text-slate-300">Defesa</span>
                           </div>
                           <span className="font-semibold text-blue-400">
-                            {character?.defense || 5}
+                            {totalStats?.defense || character?.defense || 5}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
@@ -788,7 +923,7 @@ export default function BackpackBrawl() {
                             <span className="text-sm text-slate-300">Velocidade</span>
                           </div>
                           <span className="font-semibold text-yellow-400">
-                            {character?.speed || 5}
+                            {totalStats?.speed || character?.speed || 5}
                           </span>
                         </div>
                       </CardContent>
